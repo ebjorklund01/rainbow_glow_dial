@@ -4,7 +4,7 @@ import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
 
 void main() {
   group(RainbowGlowDial, () {
-    testWidgets('renders the static tube painter at the checkpoint size', (
+    testWidgets('renders the static arc tube painter at the checkpoint size', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -25,7 +25,7 @@ void main() {
       );
 
       final size = tester.getSize(find.byType(RainbowGlowDial));
-      expect(size, const Size(300, 75));
+      expect(size, const Size(300, 300));
     });
   });
 }
