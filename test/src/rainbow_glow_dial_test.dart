@@ -208,6 +208,28 @@ void main() {
 
       expect(find.text('Living room'), findsNothing);
     });
+
+    testWidgets('builds thumb states for zero, mid, and full progress', (
+      tester,
+    ) async {
+      const dials = <RainbowGlowDial>[
+        RainbowGlowDial(),
+        RainbowGlowDial(initialValue: 0.5),
+        RainbowGlowDial(initialValue: 1),
+      ];
+
+      for (final dial in dials) {
+        await _pumpDial(tester, dial);
+
+        expect(
+          find.descendant(
+            of: find.byType(RainbowGlowDial),
+            matching: find.byType(CustomPaint),
+          ),
+          findsOneWidget,
+        );
+      }
+    });
   });
 }
 

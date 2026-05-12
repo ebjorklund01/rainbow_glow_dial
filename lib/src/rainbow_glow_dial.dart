@@ -201,20 +201,28 @@ class _RainbowGlowTubePainter extends CustomPainter {
   static const double _rimStrokeWidth = 1;
   static const _innerGlowColor = Color(0xFF3E7FE9);
   static const _rimColor = Color(0xFFAAC6FE);
+  static const _thumbColor = Color(0xFFE92929);
 
   final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (progress <= 0) {
-      return;
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    final activeSweep = _sweepAngle * clampedProgress;
+    final thumbColor = _colorForProgress(clampedProgress);
+    final thumbCenter = _thumbCenter(size, activeSweep);
+
+    _paintOuterThumbGlow(canvas, thumbCenter, thumbColor);
+
+    if (activeSweep > 0) {
+      final tubePath = _buildTubePath(size, activeSweep);
+
+      _paintInnerGlow(canvas, tubePath);
+      _paintClippedThumbGlow(canvas, tubePath, thumbCenter, thumbColor);
+      _paintRim(canvas, tubePath);
     }
 
-    final activeSweep = _sweepAngle * progress;
-    final tubePath = _buildTubePath(size, activeSweep);
-
-    _paintInnerGlow(canvas, tubePath);
-    _paintRim(canvas, tubePath);
+    _paintThumb(canvas, thumbCenter, thumbColor);
   }
 
   Path _buildTubePath(Size size, double activeSweep) {
@@ -252,6 +260,37 @@ class _RainbowGlowTubePainter extends CustomPainter {
     );
   }
 
+  Offset _thumbCenter(Size size, double activeSweep) {
+    const capRadius = _tubeWidth / 2;
+    final center = Offset(size.width / 2, size.height / 2);
+    final outerRadius = (size.shortestSide - _rimStrokeWidth) / 2;
+    final innerRadius = outerRadius - _tubeWidth;
+    final centerlineRadius = innerRadius + capRadius;
+
+    return _pointOnCircle(
+      center,
+      centerlineRadius,
+      _startAngle + activeSweep,
+    );
+  }
+
+  Color _colorForProgress(double progress) => _thumbColor;
+
+  void _paintOuterThumbGlow(
+    Canvas canvas,
+    Offset thumbCenter,
+    Color thumbColor,
+  ) {
+    final outerThumbGlowPaint = Paint()
+      ..color = thumbColor.withValues(alpha: 0.28)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        _tubeWidth * 0.45,
+      );
+
+    canvas.drawCircle(thumbCenter, _tubeWidth * 1.5, outerThumbGlowPaint);
+  }
+
   void _paintInnerGlow(Canvas canvas, Path tubePath) {
     const strokeWidth = _tubeWidth * 0.33;
     final innerGlowPaint = Paint()
@@ -267,6 +306,26 @@ class _RainbowGlowTubePainter extends CustomPainter {
       ..restore();
   }
 
+  void _paintClippedThumbGlow(
+    Canvas canvas,
+    Path tubePath,
+    Offset thumbCenter,
+    Color thumbColor,
+  ) {
+    final clippedThumbGlowPaint = Paint()
+      ..color = thumbColor.withValues(alpha: 0.75)
+      ..maskFilter = const MaskFilter.blur(
+        BlurStyle.normal,
+        _tubeWidth * 0.75,
+      );
+
+    canvas
+      ..save()
+      ..clipPath(tubePath)
+      ..drawCircle(thumbCenter, _tubeWidth * 2, clippedThumbGlowPaint)
+      ..restore();
+  }
+
   void _paintRim(Canvas canvas, Path tubePath) {
     final rimPaint = Paint()
       ..color = _rimColor
@@ -274,6 +333,15 @@ class _RainbowGlowTubePainter extends CustomPainter {
       ..strokeWidth = _rimStrokeWidth;
 
     canvas.drawPath(tubePath, rimPaint);
+  }
+
+  void _paintThumb(Canvas canvas, Offset thumbCenter, Color thumbColor) {
+    final outerThumbPaint = Paint()..color = Colors.white;
+    final innerThumbPaint = Paint()..color = thumbColor;
+
+    canvas
+      ..drawCircle(thumbCenter, _tubeWidth * 0.72, outerThumbPaint)
+      ..drawCircle(thumbCenter, _tubeWidth * 0.5, innerThumbPaint);
   }
 
   @override
