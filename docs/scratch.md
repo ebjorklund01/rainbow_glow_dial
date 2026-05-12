@@ -1,5 +1,3 @@
-Next checkpoint: add the center dial content.
+Next checkpoint only: value-driven thumb colors
 
-Add nullable `label` and `unit` parameters.
-
-Show the clamped value centered on the dial 
+Add a private palette 

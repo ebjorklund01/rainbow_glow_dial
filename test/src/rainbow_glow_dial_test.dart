@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
@@ -15,6 +17,13 @@ void main() {
     test('asserts when min is greater than max', () {
       expect(
         () => RainbowGlowDial(min: 1, max: 0),
+        throwsAssertionError,
+      );
+    });
+
+    test('asserts when step is not greater than zero', () {
+      expect(
+        () => RainbowGlowDial(step: 0),
         throwsAssertionError,
       );
     });
@@ -230,6 +239,120 @@ void main() {
         );
       }
     });
+
+    testWidgets('updates its displayed value after a tap', (tester) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(max: 100),
+      );
+
+      await tester.tapAt(_pointForProgress(tester, 1));
+      await tester.pump();
+
+      expect(find.text('100'), findsOneWidget);
+    });
+
+    testWidgets('updates its displayed value during a drag', (tester) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(max: 100),
+      );
+
+      final start = _pointForProgress(tester, 0);
+      final middle = _pointForProgress(tester, 0.5);
+      await tester.dragFrom(start, middle - start);
+      await tester.pump();
+
+      expect(find.text('50'), findsOneWidget);
+    });
+
+    testWidgets('calls change callbacks with range values for taps', (
+      tester,
+    ) async {
+      final starts = <double>[];
+      final changes = <double>[];
+      final ends = <double>[];
+
+      await _pumpDial(
+        tester,
+        RainbowGlowDial(
+          max: 100,
+          onChangeStart: starts.add,
+          onChanged: changes.add,
+          onChangeEnd: ends.add,
+        ),
+      );
+
+      await tester.tapAt(_pointForProgress(tester, 1));
+      await tester.pump();
+
+      expect(starts, equals(<double>[100]));
+      expect(changes, equals(<double>[100]));
+      expect(ends, equals(<double>[100]));
+    });
+
+    testWidgets('calls change start and end callbacks for pans', (
+      tester,
+    ) async {
+      final starts = <double>[];
+      final ends = <double>[];
+
+      await _pumpDial(
+        tester,
+        RainbowGlowDial(
+          max: 100,
+          onChangeStart: starts.add,
+          onChangeEnd: ends.add,
+        ),
+      );
+
+      final start = _pointForProgress(tester, 0);
+      final middle = _pointForProgress(tester, 0.5);
+      await tester.dragFrom(start, middle - start);
+      await tester.pump();
+
+      expect(starts, isNotEmpty);
+      expect(ends, isNotEmpty);
+    });
+
+    testWidgets('applies step to displayed and callback values', (
+      tester,
+    ) async {
+      final changes = <double>[];
+
+      await _pumpDial(
+        tester,
+        RainbowGlowDial(
+          max: 10,
+          step: 2,
+          onChanged: changes.add,
+        ),
+      );
+
+      await tester.tapAt(_pointForProgress(tester, 0.35));
+      await tester.pump();
+
+      expect(find.text('4'), findsOneWidget);
+      expect(changes, equals(<double>[4]));
+    });
+
+    testWidgets('maps a lower-left gap tap to the minimum value', (
+      tester,
+    ) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: 100,
+          max: 100,
+        ),
+      );
+
+      await tester.tapAt(_pointForAngle(tester, 0.70 * pi));
+      await tester.pump();
+
+      expect(find.text('0'), findsOneWidget);
+      expect(find.text('100'), findsNothing);
+    });
   });
 }
 
@@ -254,4 +377,21 @@ Size _paintSize(WidgetTester tester) {
   );
 
   return tester.getSize(paintFinder);
+}
+
+Offset _pointForProgress(WidgetTester tester, double progress) {
+  return _pointForAngle(tester, (0.75 * pi) + ((1.5 * pi) * progress));
+}
+
+Offset _pointForAngle(WidgetTester tester, double angle) {
+  final paintFinder = find.descendant(
+    of: find.byType(RainbowGlowDial),
+    matching: find.byType(CustomPaint),
+  );
+  final topLeft = tester.getTopLeft(paintFinder);
+  final size = tester.getSize(paintFinder);
+  final center = topLeft + Offset(size.width / 2, size.height / 2);
+  final radius = ((size.shortestSide - 1) / 2) - (35 / 2);
+
+  return center + Offset(cos(angle) * radius, sin(angle) * radius);
 }

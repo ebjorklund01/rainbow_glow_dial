@@ -35,6 +35,7 @@ class _DialPreview extends StatelessWidget {
           initialValue: 30,
           min: 0,
           max: 40,
+          step: 1,
           unit: '°C',
           label: 'Living Room',
         ),

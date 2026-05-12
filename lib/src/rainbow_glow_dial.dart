@@ -2,8 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+const double _dialStartAngle = 0.75 * math.pi;
+const double _dialSweepAngle = 1.5 * math.pi;
+const double _twoPi = math.pi * 2;
+
 /// A static glowing arc tube for the rainbow glow dial.
-class RainbowGlowDial extends StatelessWidget {
+class RainbowGlowDial extends StatefulWidget {
   /// Creates a static glowing arc tube.
   const RainbowGlowDial({
     super.key,
@@ -14,7 +18,12 @@ class RainbowGlowDial extends StatelessWidget {
     this.max = 1,
     this.label,
     this.unit,
-  }) : assert(min <= max, 'min must be less than or equal to max');
+    this.step,
+    this.onChanged,
+    this.onChangeStart,
+    this.onChangeEnd,
+  }) : assert(min <= max, 'min must be less than or equal to max'),
+       assert(step == null || step > 0, 'step must be greater than zero');
 
   static const _defaultSize = 300.0;
   static const _tubeWidth = 35.0;
@@ -42,29 +51,81 @@ class RainbowGlowDial extends StatelessWidget {
   /// Optional unit appended directly after the value.
   final String? unit;
 
+  /// Optional display and callback increment.
+  ///
+  /// The internal progress remains smooth and is not snapped.
+  final double? step;
+
+  /// Called when the dial value changes.
+  final ValueChanged<double>? onChanged;
+
+  /// Called when a tap or drag interaction starts.
+  final ValueChanged<double>? onChangeStart;
+
+  /// Called when a tap or drag interaction ends or is canceled.
+  final ValueChanged<double>? onChangeEnd;
+
+  @override
+  State<RainbowGlowDial> createState() => _RainbowGlowDialState();
+}
+
+class _RainbowGlowDialState extends State<RainbowGlowDial> {
+  late double _progress;
+  var _isInteracting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = _valueToProgress(widget.initialValue);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final side = _resolveSide(constraints);
+        final side = widget._resolveSide(constraints);
 
         return SizedBox.square(
           dimension: side,
           child: Padding(
-            padding: padding,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _RainbowGlowTubePainter(progress: _progress),
+            padding: widget.padding,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final paintSize = constraints.biggest;
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (details) {
+                    _handleInteractionStart(details.localPosition, paintSize);
+                  },
+                  onTapUp: (_) => _handleInteractionEnd(),
+                  onTapCancel: _handleInteractionEnd,
+                  onPanStart: (details) {
+                    _handleInteractionStart(details.localPosition, paintSize);
+                  },
+                  onPanUpdate: (details) {
+                    _handleInteractionUpdate(details.localPosition, paintSize);
+                  },
+                  onPanEnd: (_) => _handleInteractionEnd(),
+                  onPanCancel: _handleInteractionEnd,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _RainbowGlowTubePainter(
+                            progress: _progress,
+                          ),
+                        ),
+                      ),
+                      _DialContent(
+                        value: _formattedValue,
+                        label: widget.label,
+                      ),
+                    ],
                   ),
-                ),
-                _DialContent(
-                  value: _formattedValue,
-                  label: label,
-                ),
-              ],
+                );
+              },
             ),
           ),
         );
@@ -72,20 +133,48 @@ class RainbowGlowDial extends StatelessWidget {
     );
   }
 
-  double get _clampedValue => initialValue.clamp(min, max);
+  double get _displayValue => _steppedValue(_progressToRawValue(_progress));
 
-  double get _progress {
-    if (min == max) {
+  double get _callbackValue => _displayValue;
+
+  String get _formattedValue {
+    final value = _formatNumber(_displayValue);
+    return widget.unit == null ? value : '$value${widget.unit}';
+  }
+
+  double _clampValue(double value) {
+    return value.clamp(widget.min, widget.max);
+  }
+
+  double _valueToProgress(double value) {
+    if (widget.min == widget.max) {
       return 0;
     }
 
-    final progress = (_clampedValue - min) / (max - min);
+    final progress =
+        (_clampValue(value) - widget.min) / (widget.max - widget.min);
     return progress.clamp(0.0, 1.0);
   }
 
-  String get _formattedValue {
-    final value = _formatNumber(_clampedValue);
-    return unit == null ? value : '$value$unit';
+  double _progressToRawValue(double progress) {
+    if (widget.min == widget.max) {
+      return widget.min;
+    }
+
+    return widget.min + ((widget.max - widget.min) * progress.clamp(0.0, 1.0));
+  }
+
+  double _steppedValue(double rawValue) {
+    final clampedValue = _clampValue(rawValue);
+    final step = widget.step;
+
+    if (step == null) {
+      return clampedValue;
+    }
+
+    final stepCount = ((clampedValue - widget.min) / step).round();
+    final steppedValue = widget.min + (stepCount * step);
+    return _clampValue(steppedValue);
   }
 
   String _formatNumber(double value) {
@@ -96,8 +185,64 @@ class RainbowGlowDial extends StatelessWidget {
     return value.toString().replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
+  void _handleInteractionStart(Offset localPosition, Size size) {
+    if (_isInteracting) {
+      _handleInteractionUpdate(localPosition, size);
+      return;
+    }
+
+    _isInteracting = true;
+    _setProgressFromPosition(localPosition, size);
+    widget.onChangeStart?.call(_callbackValue);
+    widget.onChanged?.call(_callbackValue);
+  }
+
+  void _handleInteractionUpdate(Offset localPosition, Size size) {
+    _setProgressFromPosition(localPosition, size);
+    widget.onChanged?.call(_callbackValue);
+  }
+
+  void _handleInteractionEnd() {
+    if (!_isInteracting) {
+      return;
+    }
+
+    _isInteracting = false;
+    widget.onChangeEnd?.call(_callbackValue);
+  }
+
+  void _setProgressFromPosition(Offset localPosition, Size size) {
+    setState(() {
+      _progress = _progressForPosition(localPosition, size);
+    });
+  }
+
+  double _progressForPosition(Offset localPosition, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final pointerOffset = localPosition - center;
+    final angle = _normalizeAngle(
+      math.atan2(pointerOffset.dy, pointerOffset.dx),
+    );
+    final delta = _normalizeAngle(angle - _dialStartAngle);
+
+    if (delta <= _dialSweepAngle) {
+      return (delta / _dialSweepAngle).clamp(0.0, 1.0);
+    }
+
+    final distanceToStart = _twoPi - delta;
+    final distanceToEnd = delta - _dialSweepAngle;
+    return distanceToStart <= distanceToEnd ? 0 : 1;
+  }
+
+  double _normalizeAngle(double angle) {
+    final normalized = angle % _twoPi;
+    return normalized < 0 ? normalized + _twoPi : normalized;
+  }
+}
+
+extension on RainbowGlowDial {
   double _resolveSide(BoxConstraints constraints) {
-    final preferredSide = size ?? _defaultSize;
+    final preferredSide = size ?? RainbowGlowDial._defaultSize;
     final maxSide = math.min(constraints.maxWidth, constraints.maxHeight);
     final minSide = math.max(constraints.minWidth, constraints.minHeight);
     final constrainedSide = maxSide.isFinite
@@ -196,8 +341,6 @@ class _RainbowGlowTubePainter extends CustomPainter {
   const _RainbowGlowTubePainter({required this.progress});
 
   static const double _tubeWidth = RainbowGlowDial._tubeWidth;
-  static const double _startAngle = 0.75 * math.pi;
-  static const double _sweepAngle = 1.5 * math.pi;
   static const double _rimStrokeWidth = 1;
   static const _innerGlowColor = Color(0xFF3E7FE9);
   static const _rimColor = Color(0xFFAAC6FE);
@@ -208,7 +351,7 @@ class _RainbowGlowTubePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final clampedProgress = progress.clamp(0.0, 1.0);
-    final activeSweep = _sweepAngle * clampedProgress;
+    final activeSweep = _dialSweepAngle * clampedProgress;
     final thumbColor = _colorForProgress(clampedProgress);
     final thumbCenter = _thumbCenter(size, activeSweep);
 
@@ -227,7 +370,7 @@ class _RainbowGlowTubePainter extends CustomPainter {
 
   Path _buildTubePath(Size size, double activeSweep) {
     const capRadius = _tubeWidth / 2;
-    final endAngle = _startAngle + activeSweep;
+    final endAngle = _dialStartAngle + activeSweep;
     final center = Offset(size.width / 2, size.height / 2);
     final outerRadius = (size.shortestSide - _rimStrokeWidth) / 2;
     final innerRadius = outerRadius - _tubeWidth;
@@ -239,17 +382,17 @@ class _RainbowGlowTubePainter extends CustomPainter {
       radius: capRadius,
     );
     final startCapRect = Rect.fromCircle(
-      center: _pointOnCircle(center, centerlineRadius, _startAngle),
+      center: _pointOnCircle(center, centerlineRadius, _dialStartAngle),
       radius: capRadius,
     );
-    final outerStart = _pointOnCircle(center, outerRadius, _startAngle);
+    final outerStart = _pointOnCircle(center, outerRadius, _dialStartAngle);
 
     return Path()
       ..moveTo(outerStart.dx, outerStart.dy)
-      ..arcTo(outerRect, _startAngle, activeSweep, false)
+      ..arcTo(outerRect, _dialStartAngle, activeSweep, false)
       ..arcTo(endCapRect, endAngle, math.pi, false)
       ..arcTo(innerRect, endAngle, -activeSweep, false)
-      ..arcTo(startCapRect, _startAngle + math.pi, math.pi, false)
+      ..arcTo(startCapRect, _dialStartAngle + math.pi, math.pi, false)
       ..close();
   }
 
@@ -270,7 +413,7 @@ class _RainbowGlowTubePainter extends CustomPainter {
     return _pointOnCircle(
       center,
       centerlineRadius,
-      _startAngle + activeSweep,
+      _dialStartAngle + activeSweep,
     );
   }
 
