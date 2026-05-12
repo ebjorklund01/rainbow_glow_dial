@@ -194,6 +194,7 @@ void main() {
       await _pumpDial(
         tester,
         const RainbowGlowDial(
+          key: ValueKey('above-range'),
           initialValue: 30,
           min: 10,
           max: 20,

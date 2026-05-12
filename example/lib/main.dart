@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
+
+import 'thermostat/thermostat.dart';
 
 void main() {
   runApp(const ExampleApp());
@@ -18,28 +19,7 @@ class ExampleApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.black,
         useMaterial3: true,
       ),
-      home: const _DialPreview(),
-    );
-  }
-}
-
-class _DialPreview extends StatelessWidget {
-  const _DialPreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: RainbowGlowDial(
-          initialValue: 30,
-          min: 0,
-          max: 40,
-          step: 1,
-          unit: '°C',
-          label: 'Living Room',
-        ),
-      ),
+      home: const ThermostatPage(),
     );
   }
 }
