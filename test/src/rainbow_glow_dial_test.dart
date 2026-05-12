@@ -4,6 +4,28 @@ import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
 
 void main() {
   group(RainbowGlowDial, () {
+    test('uses the default value range', () {
+      const dial = RainbowGlowDial();
+
+      expect(dial.initialValue, 0);
+      expect(dial.min, 0);
+      expect(dial.max, 1);
+    });
+
+    test('asserts when min is greater than max', () {
+      expect(
+        () => RainbowGlowDial(min: 1, max: 0),
+        throwsAssertionError,
+      );
+    });
+
+    test('allows min to equal max', () {
+      expect(
+        () => const RainbowGlowDial(min: 2, max: 2),
+        returnsNormally,
+      );
+    });
+
     testWidgets('renders the static arc tube painter', (tester) async {
       await _pumpDial(tester, const RainbowGlowDial());
 
@@ -74,6 +96,43 @@ void main() {
 
       expect(_dialSize(tester), const Size(300, 300));
       expect(_paintSize(tester), const Size(252, 252));
+    });
+
+    testWidgets('builds when initial value is clamped to the range', (
+      tester,
+    ) async {
+      for (final initialValue in <double>[-10, 5, 20]) {
+        await _pumpDial(
+          tester,
+          RainbowGlowDial(
+            initialValue: initialValue,
+            max: 10,
+          ),
+        );
+
+        expect(find.byType(RainbowGlowDial), findsOneWidget);
+      }
+    });
+
+    testWidgets('renders progress for a non-default value range', (
+      tester,
+    ) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: 75,
+          min: 50,
+          max: 100,
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(RainbowGlowDial),
+          matching: find.byType(CustomPaint),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

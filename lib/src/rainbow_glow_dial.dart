@@ -9,7 +9,10 @@ class RainbowGlowDial extends StatelessWidget {
     super.key,
     this.size,
     this.padding = const EdgeInsets.all(24),
-  });
+    this.initialValue = 0,
+    this.min = 0,
+    this.max = 1,
+  }) : assert(min <= max, 'min must be less than or equal to max');
 
   static const _defaultSize = 300.0;
   static const _tubeWidth = 35.0;
@@ -22,6 +25,15 @@ class RainbowGlowDial extends StatelessWidget {
   /// Empty space between the widget bounds and the painted arc.
   final EdgeInsetsGeometry padding;
 
+  /// The initial value displayed as progress along the arc.
+  final double initialValue;
+
+  /// The minimum value for the dial range.
+  final double min;
+
+  /// The maximum value for the dial range.
+  final double max;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -32,13 +44,23 @@ class RainbowGlowDial extends StatelessWidget {
           dimension: side,
           child: Padding(
             padding: padding,
-            child: const CustomPaint(
-              painter: _RainbowGlowTubePainter(),
+            child: CustomPaint(
+              painter: _RainbowGlowTubePainter(progress: _progress),
             ),
           ),
         );
       },
     );
+  }
+
+  double get _progress {
+    if (min == max) {
+      return 0;
+    }
+
+    final clampedValue = initialValue.clamp(min, max);
+    final progress = (clampedValue - min) / (max - min);
+    return progress.clamp(0.0, 1.0);
   }
 
   double _resolveSide(BoxConstraints constraints) {
@@ -53,7 +75,7 @@ class RainbowGlowDial extends StatelessWidget {
 }
 
 class _RainbowGlowTubePainter extends CustomPainter {
-  const _RainbowGlowTubePainter();
+  const _RainbowGlowTubePainter({required this.progress});
 
   static const double _tubeWidth = RainbowGlowDial._tubeWidth;
   static const double _startAngle = 0.75 * math.pi;
@@ -62,17 +84,24 @@ class _RainbowGlowTubePainter extends CustomPainter {
   static const _innerGlowColor = Color(0xFF3E7FE9);
   static const _rimColor = Color(0xFFAAC6FE);
 
+  final double progress;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final tubePath = _buildTubePath(size);
+    if (progress <= 0) {
+      return;
+    }
+
+    final activeSweep = _sweepAngle * progress;
+    final tubePath = _buildTubePath(size, activeSweep);
 
     _paintInnerGlow(canvas, tubePath);
     _paintRim(canvas, tubePath);
   }
 
-  Path _buildTubePath(Size size) {
+  Path _buildTubePath(Size size, double activeSweep) {
     const capRadius = _tubeWidth / 2;
-    const endAngle = _startAngle + _sweepAngle;
+    final endAngle = _startAngle + activeSweep;
     final center = Offset(size.width / 2, size.height / 2);
     final outerRadius = (size.shortestSide - _rimStrokeWidth) / 2;
     final innerRadius = outerRadius - _tubeWidth;
@@ -91,9 +120,9 @@ class _RainbowGlowTubePainter extends CustomPainter {
 
     return Path()
       ..moveTo(outerStart.dx, outerStart.dy)
-      ..arcTo(outerRect, _startAngle, _sweepAngle, false)
+      ..arcTo(outerRect, _startAngle, activeSweep, false)
       ..arcTo(endCapRect, endAngle, math.pi, false)
-      ..arcTo(innerRect, endAngle, -_sweepAngle, false)
+      ..arcTo(innerRect, endAngle, -activeSweep, false)
       ..arcTo(startCapRect, _startAngle + math.pi, math.pi, false)
       ..close();
   }
@@ -130,5 +159,7 @@ class _RainbowGlowTubePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RainbowGlowTubePainter oldDelegate) => false;
+  bool shouldRepaint(_RainbowGlowTubePainter oldDelegate) {
+    return progress != oldDelegate.progress;
+  }
 }
