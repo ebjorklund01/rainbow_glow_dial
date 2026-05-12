@@ -1,63 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
+import 'package:example/app/app.dart';
+import 'package:example/thermostat/thermostat.dart';
+import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
-  runApp(const ExampleApp());
-}
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await SharedPreferences.getInstance();
+  final localStorage = ThermostatLocalStorage(preferences: preferences);
+  final repository = ThermostatRepository(localStorage: localStorage);
 
-class ExampleApp extends StatelessWidget {
-  const ExampleApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rainbow Glow Dial',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        useMaterial3: true,
-      ),
-      home: const _DialPreview(),
-    );
-  }
-}
-
-class _DialPreview extends StatelessWidget {
-  const _DialPreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            children: [
-              Expanded(
-                child: RainbowGlowDial(
-                  initialValue: 30,
-                  min: 0,
-                  max: 40,
-                  step: 1,
-                  unit: '°C',
-                  label: 'Living Room',
-                ),
-              ),
-              Expanded(
-                child: RainbowGlowDial(
-                  initialValue: 30,
-                  min: 0,
-                  max: 40,
-                  step: 1,
-                  unit: '°C',
-                  label: 'Bedroom',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  runApp(ExampleApp(thermostatRepository: repository));
 }
