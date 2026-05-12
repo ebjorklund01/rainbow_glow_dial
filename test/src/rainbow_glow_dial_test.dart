@@ -177,6 +177,23 @@ void main() {
       expect(find.text('40.5'), findsOneWidget);
     });
 
+    testWidgets(
+      'rounds floating-point noise from decimal step values',
+      (tester) async {
+        await _pumpDial(
+          tester,
+          const RainbowGlowDial(
+            initialValue: 24.4,
+            max: 40,
+            step: 0.1,
+            unit: '°C',
+          ),
+        );
+
+        expect(find.text('24.4°C'), findsOneWidget);
+      },
+    );
+
     testWidgets('shows clamped values below and above the range', (
       tester,
     ) async {
@@ -194,6 +211,7 @@ void main() {
       await _pumpDial(
         tester,
         const RainbowGlowDial(
+          key: Key('above-range'),
           initialValue: 30,
           min: 10,
           max: 20,

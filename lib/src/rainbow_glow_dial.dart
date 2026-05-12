@@ -133,56 +133,57 @@ class _RainbowGlowDialState extends State<RainbowGlowDial> {
     );
   }
 
-  double get _displayValue => _steppedValue(_progressToRawValue(_progress));
-
-  double get _callbackValue => _displayValue;
+  double get _displayValue => _steppedValue(_progressToValue(_progress));
 
   String get _formattedValue {
-    final value = _formatNumber(_displayValue);
-    return widget.unit == null ? value : '$value${widget.unit}';
+    final formatted = _formatNumber(_displayValue);
+    return widget.unit == null ? formatted : '$formatted${widget.unit}';
   }
 
-  double _clampValue(double value) {
-    return value.clamp(widget.min, widget.max);
-  }
+  double get _range => widget.max - widget.min;
+
+  double _clampValue(double value) => value.clamp(widget.min, widget.max);
 
   double _valueToProgress(double value) {
-    if (widget.min == widget.max) {
-      return 0;
-    }
-
-    final progress =
-        (_clampValue(value) - widget.min) / (widget.max - widget.min);
-    return progress.clamp(0.0, 1.0);
+    if (_range == 0) return 0;
+    return ((value - widget.min) / _range).clamp(0.0, 1.0);
   }
 
-  double _progressToRawValue(double progress) {
-    if (widget.min == widget.max) {
-      return widget.min;
-    }
+  double _progressToValue(double progress) => widget.min + _range * progress;
 
-    return widget.min + ((widget.max - widget.min) * progress.clamp(0.0, 1.0));
-  }
-
-  double _steppedValue(double rawValue) {
-    final clampedValue = _clampValue(rawValue);
+  double _steppedValue(double value) {
     final step = widget.step;
+    if (step == null) return _clampValue(value);
 
-    if (step == null) {
-      return clampedValue;
-    }
-
-    final stepCount = ((clampedValue - widget.min) / step).round();
-    final steppedValue = widget.min + (stepCount * step);
-    return _clampValue(steppedValue);
+    final stepCount = ((value - widget.min) / step).round();
+    final stepped = widget.min + stepCount * step;
+    final precision = math.max(
+      _decimalPlaces(step),
+      _decimalPlaces(widget.min),
+    );
+    return _clampValue(_roundToPrecision(stepped, precision));
   }
 
-  String _formatNumber(double value) {
-    if (value == value.roundToDouble()) {
-      return value.round().toString();
-    }
+  String _formatNumber(double value) =>
+      value.toString().replaceFirst(RegExp(r'\.?0+$'), '');
 
-    return value.toString().replaceFirst(RegExp(r'\.?0+$'), '');
+  static double _roundToPrecision(double value, int decimals) {
+    if (decimals <= 0) return value.roundToDouble();
+    final factor = math.pow(10, decimals);
+    return (value * factor).roundToDouble() / factor;
+  }
+
+  static int _decimalPlaces(double value) {
+    if (!value.isFinite || value == value.roundToDouble()) return 0;
+    final string = value.toString();
+    final eIndex = string.indexOf('e');
+    final mantissa = eIndex == -1 ? string : string.substring(0, eIndex);
+    final exponent = eIndex == -1 ? 0 : int.parse(string.substring(eIndex + 1));
+    final dotIndex = mantissa.indexOf('.');
+    final mantissaDecimals = dotIndex == -1
+        ? 0
+        : mantissa.length - dotIndex - 1;
+    return math.max(0, mantissaDecimals - exponent);
   }
 
   void _handleInteractionStart(Offset localPosition, Size size) {
@@ -193,13 +194,13 @@ class _RainbowGlowDialState extends State<RainbowGlowDial> {
 
     _isInteracting = true;
     _setProgressFromPosition(localPosition, size);
-    widget.onChangeStart?.call(_callbackValue);
-    widget.onChanged?.call(_callbackValue);
+    widget.onChangeStart?.call(_displayValue);
+    widget.onChanged?.call(_displayValue);
   }
 
   void _handleInteractionUpdate(Offset localPosition, Size size) {
     _setProgressFromPosition(localPosition, size);
-    widget.onChanged?.call(_callbackValue);
+    widget.onChanged?.call(_displayValue);
   }
 
   void _handleInteractionEnd() {
@@ -208,7 +209,7 @@ class _RainbowGlowDialState extends State<RainbowGlowDial> {
     }
 
     _isInteracting = false;
-    widget.onChangeEnd?.call(_callbackValue);
+    widget.onChangeEnd?.call(_displayValue);
   }
 
   void _setProgressFromPosition(Offset localPosition, Size size) {
