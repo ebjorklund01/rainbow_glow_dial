@@ -12,6 +12,8 @@ class RainbowGlowDial extends StatelessWidget {
     this.initialValue = 0,
     this.min = 0,
     this.max = 1,
+    this.label,
+    this.unit,
   }) : assert(min <= max, 'min must be less than or equal to max');
 
   static const _defaultSize = 300.0;
@@ -34,6 +36,12 @@ class RainbowGlowDial extends StatelessWidget {
   /// The maximum value for the dial range.
   final double max;
 
+  /// Optional label displayed below the value.
+  final String? label;
+
+  /// Optional unit appended directly after the value.
+  final String? unit;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -44,8 +52,19 @@ class RainbowGlowDial extends StatelessWidget {
           dimension: side,
           child: Padding(
             padding: padding,
-            child: CustomPaint(
-              painter: _RainbowGlowTubePainter(progress: _progress),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _RainbowGlowTubePainter(progress: _progress),
+                  ),
+                ),
+                _DialContent(
+                  value: _formattedValue,
+                  label: label,
+                ),
+              ],
             ),
           ),
         );
@@ -53,14 +72,28 @@ class RainbowGlowDial extends StatelessWidget {
     );
   }
 
+  double get _clampedValue => initialValue.clamp(min, max);
+
   double get _progress {
     if (min == max) {
       return 0;
     }
 
-    final clampedValue = initialValue.clamp(min, max);
-    final progress = (clampedValue - min) / (max - min);
+    final progress = (_clampedValue - min) / (max - min);
     return progress.clamp(0.0, 1.0);
+  }
+
+  String get _formattedValue {
+    final value = _formatNumber(_clampedValue);
+    return unit == null ? value : '$value$unit';
+  }
+
+  String _formatNumber(double value) {
+    if (value == value.roundToDouble()) {
+      return value.round().toString();
+    }
+
+    return value.toString().replaceFirst(RegExp(r'\.?0+$'), '');
   }
 
   double _resolveSide(BoxConstraints constraints) {
@@ -71,6 +104,91 @@ class RainbowGlowDial extends StatelessWidget {
         ? math.min(preferredSide, maxSide)
         : preferredSide;
     return math.max(minSide, constrainedSide);
+  }
+}
+
+class _DialContent extends StatelessWidget {
+  const _DialContent({
+    required this.value,
+    required this.label,
+  });
+
+  final String value;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final label = this.label;
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: textTheme.displayMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (label != null) ...[
+            const SizedBox(height: 12),
+            _LabelPill(label: label),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LabelPill extends StatelessWidget {
+  const _LabelPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+      color: Colors.white,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xCCFFFFFF),
+            Color(0x33FFFFFF),
+          ],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(1),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(23),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black,
+                Color(0xFF2B2B2B),
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            child: Text(label, style: labelStyle),
+          ),
+        ),
+      ),
+    );
   }
 }
 

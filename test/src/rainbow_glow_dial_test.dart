@@ -134,6 +134,80 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('shows the default center value', (tester) async {
+      await _pumpDial(tester, const RainbowGlowDial());
+
+      expect(find.text('0'), findsOneWidget);
+    });
+
+    testWidgets('formats whole values with a directly appended unit', (
+      tester,
+    ) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: 40,
+          max: 100,
+          unit: '°C',
+        ),
+      );
+
+      expect(find.text('40°C'), findsOneWidget);
+    });
+
+    testWidgets('formats non-whole values with decimals', (tester) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: 40.5,
+          max: 100,
+        ),
+      );
+
+      expect(find.text('40.5'), findsOneWidget);
+    });
+
+    testWidgets('shows clamped values below and above the range', (
+      tester,
+    ) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: -10,
+          min: 10,
+          max: 20,
+        ),
+      );
+
+      expect(find.text('10'), findsOneWidget);
+
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(
+          initialValue: 30,
+          min: 10,
+          max: 20,
+        ),
+      );
+
+      expect(find.text('20'), findsOneWidget);
+    });
+
+    testWidgets('shows a label pill when label is provided', (tester) async {
+      await _pumpDial(
+        tester,
+        const RainbowGlowDial(label: 'Living room'),
+      );
+
+      expect(find.text('Living room'), findsOneWidget);
+    });
+
+    testWidgets('hides the label pill when label is null', (tester) async {
+      await _pumpDial(tester, const RainbowGlowDial());
+
+      expect(find.text('Living room'), findsNothing);
+    });
   });
 }
 

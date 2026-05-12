@@ -30,7 +30,15 @@ class _DialPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: Colors.black,
-      body: Center(child: RainbowGlowDial(initialValue: 30, min: 0, max: 40,)),
+      body: Center(
+        child: RainbowGlowDial(
+          initialValue: 30,
+          min: 0,
+          max: 40,
+          unit: '°C',
+          label: 'Living Room',
+        ),
+      ),
     );
   }
 }
