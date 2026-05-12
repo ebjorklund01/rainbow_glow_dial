@@ -344,7 +344,13 @@ class _RainbowGlowTubePainter extends CustomPainter {
   static const double _rimStrokeWidth = 1;
   static const _innerGlowColor = Color(0xFF3E7FE9);
   static const _rimColor = Color(0xFFAAC6FE);
-  static const _thumbColor = Color(0xFFE92929);
+  static const _thumbPalette = <Color>[
+    Color(0xFF3E7FE9),
+    Color(0xFF2ECC71),
+    Color(0xFFFFD84D),
+    Color(0xFFFF8A2A),
+    Color(0xFFE92929),
+  ];
 
   final double progress;
 
@@ -417,7 +423,17 @@ class _RainbowGlowTubePainter extends CustomPainter {
     );
   }
 
-  Color _colorForProgress(double progress) => _thumbColor;
+  Color _colorForProgress(double progress) {
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    final scaledProgress = clampedProgress * (_thumbPalette.length - 1);
+    final lowerIndex = scaledProgress.floor();
+    final upperIndex = math.min(lowerIndex + 1, _thumbPalette.length - 1);
+    final localProgress = scaledProgress - lowerIndex;
+    final lowerColor = _thumbPalette[lowerIndex];
+    final upperColor = _thumbPalette[upperIndex];
+
+    return Color.lerp(lowerColor, upperColor, localProgress) ?? upperColor;
+  }
 
   void _paintOuterThumbGlow(
     Canvas canvas,
