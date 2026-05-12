@@ -5,20 +5,50 @@ import 'package:flutter/material.dart';
 /// A static glowing arc tube for the rainbow glow dial.
 class RainbowGlowDial extends StatelessWidget {
   /// Creates a static glowing arc tube.
-  const RainbowGlowDial({super.key});
+  const RainbowGlowDial({
+    super.key,
+    this.size,
+    this.padding = const EdgeInsets.all(24),
+  });
 
-  static const _size = 300.0;
+  static const _defaultSize = 300.0;
   static const _tubeWidth = 35.0;
+
+  /// The preferred square side length for the dial.
+  ///
+  /// Parent constraints can still shrink or expand the rendered size.
+  final double? size;
+
+  /// Empty space between the widget bounds and the painted arc.
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: _size,
-      height: _size,
-      child: CustomPaint(
-        painter: _RainbowGlowTubePainter(),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final side = _resolveSide(constraints);
+
+        return SizedBox.square(
+          dimension: side,
+          child: Padding(
+            padding: padding,
+            child: const CustomPaint(
+              painter: _RainbowGlowTubePainter(),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  double _resolveSide(BoxConstraints constraints) {
+    final preferredSide = size ?? _defaultSize;
+    final maxSide = math.min(constraints.maxWidth, constraints.maxHeight);
+    final minSide = math.max(constraints.minWidth, constraints.minHeight);
+    final constrainedSide = maxSide.isFinite
+        ? math.min(preferredSide, maxSide)
+        : preferredSide;
+    return math.max(minSide, constrainedSide);
   }
 }
 
@@ -28,7 +58,7 @@ class _RainbowGlowTubePainter extends CustomPainter {
   static const double _tubeWidth = RainbowGlowDial._tubeWidth;
   static const double _startAngle = 0.75 * math.pi;
   static const double _sweepAngle = 1.5 * math.pi;
-  static const double _rimStrokeWidth = 1.0;
+  static const double _rimStrokeWidth = 1;
   static const _innerGlowColor = Color(0xFF3E7FE9);
   static const _rimColor = Color(0xFFAAC6FE);
 

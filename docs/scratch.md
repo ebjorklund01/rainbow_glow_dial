@@ -1,3 +1,4 @@
-Next Checkpoint: make sizing Flutter-friendly
+Next checkpoint only: add the value/progress API to /rainbow_glow_dial.
+Do not add features from later checkpoints
 
-Make `size
+Add `initialValue` (default )
