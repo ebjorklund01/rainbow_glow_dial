@@ -1,112 +1,135 @@
 # Rainbow Glow Dial
 
 [![style: very good analysis][very_good_analysis_badge]][very_good_analysis_link]
-[![Powered by Mason](https://img.shields.io/endpoint?url=https%3A%2F%2Ftinyurl.com%2Fmason-badge)](https://github.com/felangel/mason)
 [![License: MIT][license_badge]][license_link]
 
-Glow Dial Implementation
+A glowing 270° arc dial widget for Flutter — interactive, value‑driven, with a
+thumb that shifts hue from blue through red as the value rises.
 
-## Installation 💻
+The widget renders a custom‑painted arc tube with an inner glow, a halo around
+the thumb, an optional value/unit readout, and an optional pill label. Tap and
+drag map cleanly to the arc; values can be discretized via `step`.
 
-**❗ In order to start using Rainbow Glow Dial you must have the [Flutter SDK][flutter_install_link] installed on your machine.**
+## Installation
 
-Install via `flutter pub add`:
+> [!IMPORTANT]
+> Requires the [Flutter SDK][flutter_install_link].
 
 ```sh
-dart pub add rainbow_glow_dial
+flutter pub add rainbow_glow_dial
 ```
 
----
+## Usage
 
-## Features ✨
-
-- **ThemeExtension-based theming** — light and dark theme variants with custom color and spacing tokens via `ThemeExtension<T>`
-- **Custom color tokens** — semantic colors for success, warning, and info states via `AppColors`
-- **Spacing scale** — consistent spacing tokens from xxs to xxlg via `AppSpacing`
-- **BuildContext extensions** — shorthand `context.appColors` and `context.appSpacing`
-- **Example widget** — `AppButton` composing Material's `FilledButton` and `OutlinedButton` with app-specific sizing
-
-## Usage 🚀
-
-Wrap your app with the theme:
+### Minimal
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:rainbow_glow_dial/rainbow_glow_dial.dart';
 
-class MyApp extends StatelessWidget {
+class MyDial extends StatelessWidget {
+  const MyDial({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      home: const MyHomePage(),
+    return const RainbowGlowDial(
+      initialValue: 0.5,
     );
   }
 }
 ```
 
-Use widgets and tokens in your app:
+### Custom range, units, and label
 
 ```dart
-AppButton(
-  onPressed: () {},
-  child: const Text('Click me'),
+RainbowGlowDial(
+  initialValue: 22,
+  min: 0,
+  max: 40,
+  step: 0.5,
+  unit: '°C',
+  label: 'Living Room',
 );
 ```
 
-Access custom tokens via context extensions:
+`step` controls the granularity of the displayed and emitted value while
+keeping the underlying arc progress smooth. Decimal steps (`0.1`, `0.25`, …)
+are snapped to the precision implied by `step` and `min` so callbacks and the
+readout stay free of floating‑point noise.
+
+### Reading values
+
+`RainbowGlowDial` is uncontrolled — `initialValue` seeds the dial and the
+widget owns its own progress after that. Use the callbacks to observe changes
+and to persist the final value:
 
 ```dart
-final colors = context.appColors;
-final spacing = context.appSpacing;
+RainbowGlowDial(
+  initialValue: temperature,
+  min: 0,
+  max: 40,
+  step: 1,
+  unit: '°C',
+  onChangeStart: (value) => print('start: $value'),
+  onChanged: (value) => print('changed: $value'),
+  onChangeEnd: (value) => repository.save(value),
+);
 ```
 
----
+`onChanged` fires for every tap and drag update. `onChangeStart` /
+`onChangeEnd` bracket each interaction, which makes `onChangeEnd` the right
+hook for committing the value to storage.
 
-## Continuous Integration 🤖
+### Sizing
 
-Rainbow Glow Dial comes with a built-in [GitHub Actions workflow][github_actions_link] powered by [Very Good Workflows][very_good_workflows_link] but you can also add your preferred CI/CD solution.
+The dial is square. By default it prefers `300×300` but yields to tighter
+parent constraints and expands to fill tight ones.
 
-Out of the box, on each pull request and push, the CI `formats`, `lints`, and `tests` the code. This ensures the code remains consistent and behaves correctly as you add functionality or make changes. The project uses [Very Good Analysis][very_good_analysis_link] for a strict set of analysis options used by our team. Code coverage is enforced using the [Very Good Workflows][very_good_coverage_link].
-
----
-
-## Running Tests 🧪
-
-For first time users, install the [very_good_cli][very_good_cli_link]:
-
-```sh
-dart pub global activate very_good_cli
+```dart
+RainbowGlowDial(size: 240);            // preferred 240×240
+SizedBox.square(                       // forced 180×180
+  dimension: 180,
+  child: RainbowGlowDial(),
+);
 ```
 
-To run all unit tests:
+`padding` (defaults to `EdgeInsets.all(24)`) controls the gap between the
+widget bounds and the painted arc.
+
+## API
+
+| Parameter | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `size` | `double?` | `300` | Preferred square side; constrained by parent. |
+| `padding` | `EdgeInsetsGeometry` | `EdgeInsets.all(24)` | Inset between bounds and arc. |
+| `initialValue` | `double` | `0` | Seeds internal progress; clamped to `[min, max]`. |
+| `min` / `max` | `double` | `0` / `1` | Asserts `min <= max`. |
+| `step` | `double?` | `null` | If set, snaps display + callback values; asserts `step > 0`. |
+| `label` | `String?` | `null` | Shown in a rounded pill below the value. |
+| `unit` | `String?` | `null` | Appended directly after the value (e.g. `°C`). |
+| `onChangeStart` | `ValueChanged<double>?` | `null` | Fires when a tap or drag begins. |
+| `onChanged` | `ValueChanged<double>?` | `null` | Fires for every tap and drag update. |
+| `onChangeEnd` | `ValueChanged<double>?` | `null` | Fires when interaction ends or cancels. |
+
+## Example
+
+The repository ships with a thermostat demo under [`example/`](example/) that
+wires two `RainbowGlowDial`s to a `bloc`‑backed thermostat feature with
+`shared_preferences` persistence.
 
 ```sh
-very_good test --coverage
+cd example
+flutter run
 ```
 
-To view the generated coverage report you can use [lcov](https://github.com/linux-test-project/lcov).
+## Running tests
 
 ```sh
-# Generate Coverage Report
-genhtml coverage/lcov.info -o coverage/
-
-# Open Coverage Report
-open coverage/index.html
+flutter test
 ```
 
 [flutter_install_link]: https://docs.flutter.dev/get-started/install
-[github_actions_link]: https://docs.github.com/en/actions/learn-github-actions
 [license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [license_link]: https://opensource.org/licenses/MIT
-[logo_black]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_black.png#gh-light-mode-only
-[logo_white]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_white.png#gh-dark-mode-only
-[mason_link]: https://github.com/felangel/mason
 [very_good_analysis_badge]: https://img.shields.io/badge/style-very_good_analysis-B22C89.svg
 [very_good_analysis_link]: https://pub.dev/packages/very_good_analysis
-[very_good_cli_link]: https://pub.dev/packages/very_good_cli
-[very_good_coverage_link]: https://github.com/marketplace/actions/very-good-coverage
-[very_good_ventures_link]: https://verygood.ventures
-[very_good_ventures_link_light]: https://verygood.ventures#gh-light-mode-only
-[very_good_ventures_link_dark]: https://verygood.ventures#gh-dark-mode-only
-[very_good_workflows_link]: https://github.com/VeryGoodOpenSource/very_good_workflows
