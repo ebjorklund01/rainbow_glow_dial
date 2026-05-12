@@ -10,15 +10,6 @@ The widget renders a custom‑painted arc tube with an inner glow, a halo around
 the thumb, an optional value/unit readout, and an optional pill label. Tap and
 drag map cleanly to the arc; values can be discretized via `step`.
 
-## Installation
-
-> [!IMPORTANT]
-> Requires the [Flutter SDK][flutter_install_link].
-
-```sh
-flutter pub add rainbow_glow_dial
-```
-
 ## Usage
 
 ### Minimal
